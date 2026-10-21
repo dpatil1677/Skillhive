@@ -47,9 +47,14 @@
                 • Due {{ $order->due_date }}
             </span>
         </div>
-        <a href="{{ route('seller.orders') }}" class="btn-sh btn-sh-outline btn-sh-sm">
-            <i class="bi bi-arrow-left me-1"></i> Back to My Orders
-        </a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{{ route('orders.invoice', $order->order_number) }}" target="_blank" class="btn-sh btn-sh-outline btn-sh-sm">
+                <i class="bi bi-file-earmark-text me-1"></i> Tax Invoice
+            </a>
+            <a href="{{ route('seller.orders') }}" class="btn-sh btn-sh-outline btn-sh-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to My Orders
+            </a>
+        </div>
     </div>
 
     {{-- Progress Timeline --}}

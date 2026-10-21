@@ -24,6 +24,8 @@ class Order extends Model
         'deliverables_file',
         'submitted_at',
         'status',
+        'cancellation_reason',
+        'cancelled_by',
         'delivery_date',
     ];
 

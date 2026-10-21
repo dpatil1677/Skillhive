@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Helpers\UserStore;
 use App\Models\Category;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Review;
 use App\Models\Service;
+use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -348,5 +350,109 @@ class SellerController extends Controller
             ->firstOrFail();
 
         return view('seller.order-show', ['order' => $order]);
+    }
+
+    /**
+     * Freelancer Payouts & Earnings Management.
+     */
+    public function payouts()
+    {
+        $sellerId = Auth::id();
+        $user = Auth::user();
+
+        $completedOrdersSum = (float) Order::where('freelancer_id', $sellerId)
+            ->where('status', 'completed')
+            ->sum('price');
+
+        $withdrawnSum = (float) Withdrawal::where('user_id', $sellerId)
+            ->whereIn('status', ['pending', 'processing', 'completed'])
+            ->sum('amount');
+
+        $completedWithdrawnSum = (float) Withdrawal::where('user_id', $sellerId)
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $availableBalance = max(0, $completedOrdersSum - $withdrawnSum);
+
+        $withdrawals = Withdrawal::where('user_id', $sellerId)
+            ->latest()
+            ->get();
+
+        return view('seller.payouts', [
+            'user' => $user,
+            'totalEarnings' => $completedOrdersSum,
+            'withdrawnSum' => $completedWithdrawnSum,
+            'availableBalance' => $availableBalance,
+            'withdrawals' => $withdrawals,
+        ]);
+    }
+
+    /**
+     * Submit a payout / withdrawal request.
+     */
+    public function requestPayout(Request $request)
+    {
+        $sellerId = Auth::id();
+
+        $completedOrdersSum = (float) Order::where('freelancer_id', $sellerId)
+            ->where('status', 'completed')
+            ->sum('price');
+
+        $withdrawnSum = (float) Withdrawal::where('user_id', $sellerId)
+            ->whereIn('status', ['pending', 'processing', 'completed'])
+            ->sum('amount');
+
+        $availableBalance = max(0, $completedOrdersSum - $withdrawnSum);
+
+        $request->validate([
+            'amount' => 'required|numeric|min:100',
+            'method' => 'required|in:upi,bank',
+            'upi_id' => 'required_if:method,upi|nullable|string|max:100',
+            'account_number' => 'required_if:method,bank|nullable|string|min:8|max:25',
+            'ifsc' => 'required_if:method,bank|nullable|string|max:15',
+            'bank_name' => 'required_if:method,bank|nullable|string|max:100',
+            'account_holder' => 'required_if:method,bank|nullable|string|max:100',
+        ]);
+
+        $requestedAmount = (float) $request->input('amount');
+
+        if ($requestedAmount > $availableBalance) {
+            return back()->with('toast_error', 'Withdrawal amount exceeds your available balance of ₹' . number_format($availableBalance, 2));
+        }
+
+        if ($request->input('method') === 'upi') {
+            $payoutDetails = [
+                'upi_id' => trim($request->input('upi_id')),
+            ];
+        } else {
+            $payoutDetails = [
+                'account_holder' => trim($request->input('account_holder')),
+                'account_number' => trim($request->input('account_number')),
+                'ifsc' => strtoupper(trim($request->input('ifsc'))),
+                'bank_name' => trim($request->input('bank_name')),
+            ];
+        }
+
+        $refId = 'WD-' . strtoupper(Str::random(8));
+
+        Withdrawal::create([
+            'user_id' => $sellerId,
+            'reference_id' => $refId,
+            'amount' => $requestedAmount,
+            'method' => $request->input('method'),
+            'payout_details' => $payoutDetails,
+            'status' => 'pending',
+        ]);
+
+        Notification::create([
+            'user_id' => $sellerId,
+            'title' => 'Payout Requested',
+            'message' => "Your withdrawal request for ₹" . number_format($requestedAmount, 2) . " ({$refId}) is submitted and being processed.",
+            'url' => route('seller.payouts'),
+            'icon' => 'bi-wallet2',
+            'type' => 'payout',
+        ]);
+
+        return redirect()->route('seller.payouts')->with('toast_success', 'Withdrawal request of ₹' . number_format($requestedAmount, 2) . ' submitted successfully!');
     }
 }

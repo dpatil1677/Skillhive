@@ -9,7 +9,7 @@
     {{-- Breadcrumb --}}
     @include('components.breadcrumb', ['items' => [
         ['label' => 'Home', 'url' => route('home')],
-        ['label' => $service['category'], 'url' => route('category', $service['category_slug'])],
+        ['label' => $service->category_name ?? ($service->category?->name ?? 'Category'), 'url' => route('category', $service['category_slug'])],
         ['label' => Str::limit($service['title'], 35)],
     ]])
 

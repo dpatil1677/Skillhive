@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\Service;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,14 +27,56 @@ class BookingController extends Controller
                 ->with('toast_error', 'You are the creator of this service! Freelancers do not pay for their own services — clients hire you and pay into escrow.');
         }
 
-        $packageKey = strtolower($request->query('package', 'standard'));
-        if (!isset($service['packages'][$packageKey])) {
-            $packageKey = 'standard';
+        $packages = $service->packages;
+        if (!is_array($packages) || empty($packages)) {
+            $basePrice = (float) ($service->price ?? 499);
+            $baseDelivery = (int) ($service->delivery_days ?? 3);
+            $packages = [
+                'basic' => [
+                    'name' => 'Basic',
+                    'price' => $basePrice,
+                    'delivery' => $baseDelivery,
+                    'revisions' => 1,
+                    'features' => ['Basic deliverable', 'Source file included', '1 Revision'],
+                ],
+                'standard' => [
+                    'name' => 'Standard',
+                    'price' => round($basePrice * 1.8),
+                    'delivery' => max(1, $baseDelivery + 2),
+                    'revisions' => 3,
+                    'features' => ['Everything in Basic', 'Database setup', 'Admin dashboard', '3 Revisions'],
+                ],
+                'premium' => [
+                    'name' => 'Premium',
+                    'price' => round($basePrice * 3.2),
+                    'delivery' => max(1, $baseDelivery + 5),
+                    'revisions' => 5,
+                    'features' => ['Full production app', 'Deployment help', 'Commercial license', '14 days support'],
+                ],
+            ];
+            $service->packages = $packages;
         }
 
-        $package = $service['packages'][$packageKey];
-        $platformFee = 50;
-        $totalAmount = $package['price'] + $platformFee;
+        $packageKey = strtolower(trim((string) $request->query('package', 'standard')));
+        if (!isset($packages[$packageKey])) {
+            $packageKey = isset($packages['standard']) ? 'standard' : (array_key_first($packages) ?? 'basic');
+        }
+
+        $package = $packages[$packageKey];
+        $packagePrice = (float) ($package['price'] ?? ($service->price ?? 499));
+        $packageDelivery = max(1, (int) ($package['delivery'] ?? ($service->delivery_days ?? 3)));
+        $packageName = $package['name'] ?? ucfirst($packageKey);
+        $packageFeatures = is_array($package['features'] ?? null)
+            ? $package['features']
+            : (array_filter(array_map('trim', explode("\n", (string) ($package['features'] ?? '')))) ?: ['Standard deliverable']);
+
+        $package['price'] = $packagePrice;
+        $package['delivery'] = $packageDelivery;
+        $package['name'] = $packageName;
+        $package['features'] = $packageFeatures;
+
+        $platformFee = 50.0;
+        $totalAmount = $packagePrice + $platformFee;
         $currentUser = Auth::user();
 
         return view('booking.checkout', [
@@ -67,13 +110,29 @@ class BookingController extends Controller
                 ->with('toast_error', 'You cannot place an order on your own service.');
         }
 
-        $packageKey = strtolower($request->input('package_key', 'standard'));
-        $package = $service['packages'][$packageKey] ?? ($service['packages']['standard'] ?? ['price' => 499, 'delivery' => 3]);
+        $packages = $service->packages;
+        if (!is_array($packages) || empty($packages)) {
+            $basePrice = (float) ($service->price ?? 499);
+            $baseDelivery = (int) ($service->delivery_days ?? 3);
+            $packages = [
+                'basic' => ['name' => 'Basic', 'price' => $basePrice, 'delivery' => $baseDelivery, 'revisions' => 1, 'features' => ['Basic deliverable']],
+                'standard' => ['name' => 'Standard', 'price' => round($basePrice * 1.8), 'delivery' => max(1, $baseDelivery + 2), 'revisions' => 3, 'features' => ['Standard deliverable']],
+                'premium' => ['name' => 'Premium', 'price' => round($basePrice * 3.2), 'delivery' => max(1, $baseDelivery + 5), 'revisions' => 5, 'features' => ['Premium deliverable']],
+            ];
+        }
 
+        $packageKey = strtolower(trim((string) $request->input('package_key', 'standard')));
+        if (!isset($packages[$packageKey])) {
+            $packageKey = isset($packages['standard']) ? 'standard' : (array_key_first($packages) ?? 'basic');
+        }
+
+        $package = $packages[$packageKey];
         $clientId = Auth::id();
-        $platformFee = 50;
-        $totalAmount = $package['price'] + $platformFee;
-        $deliveryDays = (int) ($package['delivery'] ?? 5);
+        $packagePrice = (float) ($package['price'] ?? ($service->price ?? 499));
+        $platformFee = 50.0;
+        $totalAmount = $packagePrice + $platformFee;
+        $deliveryDays = max(1, (int) ($package['delivery'] ?? ($service->delivery_days ?? 5)));
+        $packageName = $package['name'] ?? ucfirst($packageKey);
 
         do {
             $orderNumber = 'SH-' . rand(1000, 9999);
@@ -84,8 +143,8 @@ class BookingController extends Controller
             'client_id' => $clientId,
             'freelancer_id' => $service->user_id,
             'service_id' => $service->id,
-            'package' => ucfirst($packageKey),
-            'price' => $package['price'],
+            'package' => $packageName,
+            'price' => $packagePrice,
             'platform_fee' => $platformFee,
             'total_amount' => $totalAmount,
             'requirements' => $request->input('requirements'),
@@ -103,28 +162,8 @@ class BookingController extends Controller
             ]);
         }
 
-        // Create notifications for both parties
-        if ($service->user_id) {
-            \App\Models\Notification::create([
-                'user_id' => $service->user_id,
-                'title'   => 'New Order Received! 🎉',
-                'message' => "Order #{$orderNumber} placed for '{$service->title}' by " . (Auth::user()->name ?? 'a client') . '.',
-                'url'     => route('seller.orders.show', $orderNumber),
-                'icon'    => 'bi-bag-check-fill',
-                'type'    => 'order',
-                'is_read' => false,
-            ]);
-        }
-
-        \App\Models\Notification::create([
-            'user_id' => $clientId,
-            'title'   => 'Order Confirmed',
-            'message' => "Your order #{$orderNumber} for '{$service->title}' has been successfully placed.",
-            'url'     => route('orders.show', $orderNumber),
-            'icon'    => 'bi-bag-check',
-            'type'    => 'order',
-            'is_read' => false,
-        ]);
+        // Dispatch transactional email and in-app notifications
+        NotificationService::orderPlaced($order);
 
         return redirect()->route('orders.show', ['orderNumber' => $orderNumber])
             ->with('toast_success', 'Order ' . $orderNumber . ' placed successfully!');

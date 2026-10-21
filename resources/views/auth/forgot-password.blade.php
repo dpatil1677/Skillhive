@@ -35,9 +35,8 @@
                         <h1 style="font-size:var(--fs-xl);">Check your email</h1>
                         <p class="auth-subtitle mb-3">We sent a password reset link to <strong>{{ old('email') }}</strong></p>
                         <div style="background:var(--color-primary-subtle);border:1px solid var(--color-primary-light);border-radius:var(--radius-md);padding:.875rem 1rem;font-size:var(--fs-sm);color:var(--color-primary);text-align:left;">
-                            <i class="bi bi-info-circle me-1"></i>
-                            <strong>Dev note:</strong> Since email is set to <code>log</code> driver, find the reset link in
-                            <code>storage/logs/laravel.log</code> — look for the URL ending in <code>/reset-password/</code>.
+                            <i class="bi bi-shield-check me-1"></i>
+                            <strong>Tip:</strong> If you don't see the email within a minute, check your <strong>Spam</strong> or <strong>Junk</strong> folder. The link expires in <strong>60 minutes</strong>.
                         </div>
                     </div>
 

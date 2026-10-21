@@ -123,6 +123,9 @@
                 <a href="{{ route('admin.reviews') }}" class="admin-nav-link {{ request()->routeIs('admin.reviews*') ? 'active' : '' }}">
                     <i class="bi bi-star-half fs-5"></i> Reviews
                 </a>
+                <a href="{{ route('admin.withdrawals') }}" class="admin-nav-link {{ request()->routeIs('admin.withdrawals*') ? 'active' : '' }}">
+                    <i class="bi bi-wallet2 fs-5"></i> Payouts
+                </a>
 
                 {{-- View Dashboards --}}
                 <div class="admin-nav-label mt-3">View As User</div>

@@ -182,6 +182,9 @@
                     <a href="{{ route('seller.services') }}" class="btn-sh btn-sh-secondary text-start">
                         <i class="bi bi-journal-text me-2"></i> Manage My Services
                     </a>
+                    <a href="{{ route('seller.payouts') }}" class="btn-sh btn-sh-outline text-start">
+                        <i class="bi bi-wallet2 me-2"></i> Earnings &amp; Withdrawals
+                    </a>
                 </div>
             </div>
 

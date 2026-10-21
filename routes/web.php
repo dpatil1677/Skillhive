@@ -69,6 +69,13 @@ Route::middleware('auth')->group(function () {
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/avatar/remove', [ProfileController::class, 'removeAvatar'])->name('profile.avatar.remove');
+    Route::post('/profile/become-seller', [ProfileController::class, 'becomeSeller'])->name('profile.become-seller');
+    Route::post('/profile/switch-role', [ProfileController::class, 'switchRole'])->name('profile.switch-role');
+
+    // Orders Cancellation & Invoice
+    Route::post('/orders/{orderNumber}/cancel', [OrderController::class, 'cancelOrder'])->name('orders.cancel');
+    Route::get('/orders/{orderNumber}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
 
     // Seller / Freelancer Suite
     Route::prefix('seller')->name('seller.')->middleware('seller')->group(function () {
@@ -82,6 +89,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders', [SellerController::class, 'sellerOrders'])->name('orders');
         Route::get('/orders/{orderNumber}', [SellerController::class, 'showOrder'])->name('orders.show');
 
+        // Payouts & Earnings
+        Route::get('/payouts', [SellerController::class, 'payouts'])->name('payouts');
+        Route::post('/payouts/request', [SellerController::class, 'requestPayout'])->name('payouts.request');
+
         // Portfolio Manager
         Route::get('/portfolio', [PortfolioController::class, 'index'])->name('portfolio');
         Route::post('/portfolio', [PortfolioController::class, 'store'])->name('portfolio.store');
@@ -89,11 +100,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/portfolio/{id}/delete', [PortfolioController::class, 'destroy'])->name('portfolio.destroy');
     });
 
-    // Chat / Messages
+    // Chat / Messages & Video Call
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::get('/chat/messages', [ChatController::class, 'messages'])->name('chat.messages');
     Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
     Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
+    Route::post('/chat/meeting/start', [ChatController::class, 'startMeeting'])->name('chat.meeting.start');
 
     // Reviews
     Route::post('/reviews/submit', [ReviewController::class, 'store'])->name('reviews.store');
@@ -144,6 +156,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/reviews', [AdminController::class, 'storeReview'])->name('reviews.store');
     Route::post('/reviews/{id}/update', [AdminController::class, 'updateReview'])->name('reviews.update');
     Route::post('/reviews/{id}/delete', [AdminController::class, 'deleteReview'])->name('reviews.delete');
+
+    // Withdrawals Management
+    Route::get('/withdrawals', [AdminController::class, 'withdrawals'])->name('withdrawals');
+    Route::post('/withdrawals/{id}/status', [AdminController::class, 'updateWithdrawalStatus'])->name('withdrawals.status');
 });
 
 // Impersonation return route (accessible to any authenticated user who has admin_impersonator_id)

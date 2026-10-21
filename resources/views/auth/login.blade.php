@@ -78,9 +78,10 @@
 
                 {{-- Social --}}
                 <div class="d-grid mb-2">
-                    <button type="button" class="btn-social" onclick="showToast('Google login coming soon!','info')">
+                    <button type="button" class="btn-social" onclick="showToast('Google sign-in is coming soon! Please sign in with your email and password below.','info')">
                         <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                        Continue with Google
+                        <span>Continue with Google</span>
+                        <span class="badge-sh badge-sh-secondary ms-2" style="font-size:10px;padding:2px 6px;">Coming Soon</span>
                     </button>
                 </div>
 
@@ -101,7 +102,7 @@
                                name="email"
                                class="form-control-sh w-100 {{ $errors->has('email') ? 'is-invalid' : '' }}"
                                value="{{ old('email') }}"
-                               placeholder="you@college.edu"
+                               placeholder="e.g. you@gmail.com or you@college.edu"
                                required
                                autocomplete="email">
                         @error('email')
@@ -135,8 +136,8 @@
 
                     {{-- Remember me --}}
                     <div class="d-flex align-items-center gap-2 mb-5">
-                        <input type="checkbox" class="form-check-input" id="rememberMe" name="remember" style="width:16px;height:16px;">
-                        <label for="rememberMe" style="font-size:var(--fs-sm);cursor:pointer;">Remember me for 30 days</label>
+                        <input type="checkbox" class="form-check-input" id="rememberMe" name="remember" value="1" {{ old('remember') ? 'checked' : '' }} style="width:16px;height:16px;">
+                        <label for="rememberMe" style="font-size:var(--fs-sm);cursor:pointer;">Remember me on this device</label>
                     </div>
 
                     <div class="d-grid">
@@ -173,20 +174,35 @@ function togglePw(fieldId, btn) {
 document.getElementById('loginForm')?.addEventListener('submit', function(e) {
     const email = document.getElementById('loginEmail');
     const pw    = document.getElementById('loginPassword');
+    const btn   = document.getElementById('loginBtn');
     let ok = true;
+
+    email.value = email.value.trim().toLowerCase();
 
     if (!email.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
         showFieldError(email, 'Please enter a valid email address.');
         ok = false;
-    } else clearFieldError(email);
+    } else {
+        clearFieldError(email);
+    }
 
     if (pw.value.length < 6) {
         showFieldError(pw, 'Password must be at least 6 characters.');
         ok = false;
-    } else clearFieldError(pw);
+    } else {
+        clearFieldError(pw);
+    }
 
-    if (!ok) e.preventDefault();
-    else document.getElementById('loginBtn').textContent = 'Signing in…';
+    if (!ok) {
+        e.preventDefault();
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+    }
+
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    this.submit();
 });
 
 function showFieldError(el, msg) {
@@ -197,6 +213,7 @@ function showFieldError(el, msg) {
     d.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>' + msg;
     el.closest('.mb-4, .mb-3')?.appendChild(d);
 }
+
 function clearFieldError(el) {
     el.classList.remove('is-invalid');
     el.closest('.mb-4, .mb-3')?.querySelectorAll('.js-err').forEach(e => e.remove());

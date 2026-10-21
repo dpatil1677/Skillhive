@@ -81,6 +81,52 @@ class Service extends Model
         return (int) ($this->reviews_count ?? 0);
     }
 
+    public function getPackagesAttribute($value): array
+    {
+        $packages = is_string($value) ? json_decode($value, true) : $value;
+        if (!is_array($packages) || empty($packages)) {
+            $basePrice = (float) ($this->attributes['price'] ?? 499);
+            $baseDelivery = (int) ($this->attributes['delivery_days'] ?? 3);
+            return [
+                'basic' => [
+                    'name' => 'Basic',
+                    'price' => $basePrice,
+                    'delivery' => $baseDelivery,
+                    'revisions' => 1,
+                    'features' => ['Basic deliverable', 'Source file included', '1 Revision'],
+                ],
+                'standard' => [
+                    'name' => 'Standard',
+                    'price' => round($basePrice * 1.8),
+                    'delivery' => max(1, $baseDelivery + 2),
+                    'revisions' => 3,
+                    'features' => ['Everything in Basic', 'Database setup', 'Admin dashboard', '3 Revisions'],
+                ],
+                'premium' => [
+                    'name' => 'Premium',
+                    'price' => round($basePrice * 3.2),
+                    'delivery' => max(1, $baseDelivery + 5),
+                    'revisions' => 5,
+                    'features' => ['Full production app', 'Deployment help', 'Commercial license', '14 days support'],
+                ],
+            ];
+        }
+
+        foreach (['basic', 'standard', 'premium'] as $tier) {
+            if (isset($packages[$tier]) && is_array($packages[$tier])) {
+                $packages[$tier]['name'] = $packages[$tier]['name'] ?? ucfirst($tier);
+                $packages[$tier]['price'] = (float) ($packages[$tier]['price'] ?? 0);
+                $packages[$tier]['delivery'] = (int) ($packages[$tier]['delivery'] ?? 3);
+                $packages[$tier]['revisions'] = (int) ($packages[$tier]['revisions'] ?? 1);
+                if (!isset($packages[$tier]['features']) || !is_array($packages[$tier]['features'])) {
+                    $packages[$tier]['features'] = ['Deliverable included'];
+                }
+            }
+        }
+
+        return $packages;
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

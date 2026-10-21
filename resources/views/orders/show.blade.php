@@ -53,9 +53,19 @@
                 • Expected delivery: {{ $order->due_date }}
             </span>
         </div>
-        <a href="{{ route('orders.index') }}" class="btn-sh btn-sh-outline btn-sh-sm">
-            <i class="bi bi-arrow-left me-1"></i> Back to My Orders
-        </a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{{ route('orders.invoice', $order->order_number) }}" target="_blank" class="btn-sh btn-sh-outline btn-sh-sm">
+                <i class="bi bi-file-earmark-text me-1"></i> Tax Invoice
+            </a>
+            @if(in_array($rawSt, ['pending', 'accepted', 'in_progress', 'submitted']))
+                <button type="button" class="btn-sh btn-sh-outline btn-sh-sm text-danger" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+                    <i class="bi bi-x-circle me-1"></i> Cancel Order
+                </button>
+            @endif
+            <a href="{{ route('orders.index') }}" class="btn-sh btn-sh-outline btn-sh-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to My Orders
+            </a>
+        </div>
     </div>
 
     {{-- Progress Timeline --}}
@@ -241,8 +251,18 @@
                 @elseif($rawSt === 'cancelled')
                     <div class="p-4 rounded text-center border" style="background: #fef2f2; border-color: #fca5a5 !important;">
                         <i class="bi bi-x-circle-fill text-danger fs-1 mb-2 d-block"></i>
-                        <h6 class="text-danger mb-1">Order Cancelled</h6>
-                        <p class="text-secondary mb-0" style="font-size: var(--fs-sm);">This order is no longer active.</p>
+                        <h5 class="text-danger mb-1">Order Cancelled</h5>
+                        @if($order->cancellation_reason)
+                            <div class="p-3 my-3 bg-white rounded border text-start">
+                                <span class="text-secondary d-block" style="font-size: 11px; text-transform: uppercase; font-weight: 600;">
+                                    Cancellation Reason (Cancelled by {{ ucfirst($order->cancelled_by ?: 'client') }}):
+                                </span>
+                                <p class="mb-0 text-dark mt-1" style="font-size: var(--fs-sm);">{{ $order->cancellation_reason }}</p>
+                            </div>
+                        @endif
+                        <p class="text-secondary mb-0" style="font-size: var(--fs-sm);">
+                            This order is closed and the simulated escrow amount of <strong>₹{{ number_format($order->total_amount, 2) }}</strong> has been returned to your payment balance.
+                        </p>
                     </div>
                 @endif
             </div>
@@ -395,5 +415,47 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 @endpush
 @endif
+
+{{-- Cancel Order Modal --}}
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius-lg);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="cancelOrderModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Cancel Order #{{ $order->order_number }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('orders.cancel', $order->order_number) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-warning p-3 rounded-3 mb-3 border">
+                        <strong class="d-block mb-1">Escrow Refund Protection:</strong>
+                        Your total payment of <strong>₹{{ number_format($order->total_amount, 2) }}</strong> will be released from escrow and refunded.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label-sh" for="cancelReason">Reason for Cancellation <span class="text-danger">*</span></label>
+                        <select class="form-select mb-2" onchange="if(this.value && this.value !== 'Other') document.getElementById('cancelReason').value = this.value;">
+                            <option value="">Select a reason...</option>
+                            <option value="Changed project requirements">Changed project requirements</option>
+                            <option value="Placed by mistake / Duplicate order">Placed by mistake / Duplicate order</option>
+                            <option value="Found alternative solution">Found alternative solution</option>
+                            <option value="Freelancer unresponsive / Unable to fulfill">Freelancer unresponsive / Unable to fulfill</option>
+                            <option value="Other">Other reason...</option>
+                        </select>
+                        <textarea class="form-control-sh w-100" id="cancelReason" name="cancellation_reason" rows="3" placeholder="Please explain why you are cancelling this order..." required minlength="5"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn-sh btn-sh-outline" data-bs-dismiss="modal">Keep Order</button>
+                    <button type="submit" class="btn-sh btn-sh-danger" onclick="return confirm('Confirm cancellation? Escrow funds will be refunded.');">
+                        <i class="bi bi-x-circle me-1"></i> Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @endsection

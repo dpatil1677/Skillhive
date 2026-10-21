@@ -568,6 +568,8 @@ class AdminController extends Controller
         $order->status = $request->input('status');
         $order->save();
 
+        \App\Services\NotificationService::orderStatusUpdated($order, $order->status);
+
         return redirect()->route('admin.orders')
             ->with('toast_success', 'Order #' . $orderNumber . ' status updated to ' . ucfirst($order->status) . '!');
     }
@@ -777,5 +779,47 @@ class AdminController extends Controller
 
         return redirect()->route('admin.reviews')
             ->with('toast_success', 'Review deleted successfully.');
+    }
+
+    /**
+     * Admin Payout Requests Management.
+     */
+    public function withdrawals(Request $request)
+    {
+        $status = $request->query('status');
+        $query = \App\Models\Withdrawal::with('user')->latest();
+        if ($status && in_array($status, ['pending', 'processing', 'completed', 'rejected'])) {
+            $query->where('status', $status);
+        }
+        $withdrawals = $query->get();
+
+        return view('admin.withdrawals', [
+            'withdrawals' => $withdrawals,
+            'currentStatus' => $status,
+        ]);
+    }
+
+    /**
+     * Update withdrawal status as Admin.
+     */
+    public function updateWithdrawalStatus(int $id, Request $request)
+    {
+        $withdrawal = \App\Models\Withdrawal::with('user')->findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|in:pending,processing,completed,rejected',
+            'admin_notes' => 'nullable|string|max:500',
+        ]);
+
+        $withdrawal->status = $request->input('status');
+        $withdrawal->admin_notes = $request->input('admin_notes');
+        if ($withdrawal->status === 'completed') {
+            $withdrawal->processed_at = now();
+        }
+        $withdrawal->save();
+
+        \App\Services\NotificationService::withdrawalStatusUpdated($withdrawal);
+
+        return back()->with('toast_success', "Withdrawal #{$withdrawal->reference_id} status updated to " . ucfirst($withdrawal->status));
     }
 }

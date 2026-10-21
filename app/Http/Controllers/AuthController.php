@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -35,9 +36,12 @@ class AuthController extends Controller
 
     public function processLogin(Request $request)
     {
+        $normalizedEmail = strtolower(trim((string) $request->input('email', '')));
+        $request->merge(['email' => $normalizedEmail]);
+
         $request->validate([
             'email'    => ['required', 'email'],
-            'password' => ['required', 'min:6'],
+            'password' => ['required', 'string', 'min:6'],
         ], [
             'email.required'    => 'Please enter your email address.',
             'email.email'       => 'Please enter a valid email address.',
@@ -45,10 +49,25 @@ class AuthController extends Controller
             'password.min'      => 'Password must be at least 6 characters.',
         ]);
 
-        $credentials = $request->only('email', 'password');
-        $remember    = $request->boolean('remember');
+        $throttleKey = Str::transliterate(Str::lower($normalizedEmail) . '|' . $request->ip());
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()
+                ->withInput($request->only('email', 'remember'))
+                ->withErrors(['email' => "Too many login attempts. Please try again in {$seconds} seconds."])
+                ->with('toast_error', "Too many failed attempts. Please wait {$seconds}s.");
+        }
+
+        $credentials = [
+            'email'    => $normalizedEmail,
+            'password' => $request->input('password'),
+        ];
+        $remember = $request->boolean('remember');
 
         if (Auth::attempt($credentials, $remember)) {
+            RateLimiter::clear($throttleKey);
+
             $request->session()->regenerate();
             UserStore::initForAuthUser();
 
@@ -76,9 +95,11 @@ class AuthController extends Controller
                 ->with('toast_success', 'Welcome back, ' . $user->name . '!');
         }
 
+        RateLimiter::hit($throttleKey, 60);
+
         return back()
-            ->withInput($request->only('email'))
-            ->withErrors(['email' => 'These credentials do not match our records.'])
+            ->withInput($request->only('email', 'remember'))
+            ->withErrors(['email' => 'These credentials do not match our records. Please check your email and password.'])
             ->with('toast_error', 'Invalid email or password. Please try again.');
     }
 
@@ -155,33 +176,45 @@ class AuthController extends Controller
 
     public function processRegister(Request $request)
     {
+        $normalizedEmail = strtolower(trim((string) $request->input('email', '')));
+        $normalizedName  = trim((string) $request->input('name', ''));
+
+        $request->merge([
+            'email' => $normalizedEmail,
+            'name'  => $normalizedName,
+        ]);
+
         $request->validate([
-            'name'     => ['required', 'string', 'max:100', 'min:2'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
-            'college'  => ['nullable', 'string', 'max:150'],
-            'course'   => ['nullable', 'string', 'max:100'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'name'         => ['required', 'string', 'max:100', 'min:2'],
+            'email'        => ['required', 'email', 'max:255', 'unique:users,email'],
+            'account_type' => ['nullable', 'in:buyer,seller'],
+            'college'      => ['nullable', 'string', 'max:150', 'required_if:account_type,seller'],
+            'course'       => ['nullable', 'string', 'max:100'],
+            'password'     => ['required', 'string', 'min:8', 'confirmed'],
+            'terms'        => ['accepted'],
         ], [
-            'name.required'    => 'Please enter your full name.',
-            'name.min'         => 'Name must be at least 2 characters.',
-            'email.required'   => 'Please enter your email address.',
-            'email.email'      => 'Please enter a valid email address.',
-            'email.unique'     => 'This email is already registered. Try signing in.',
-            'password.required'=> 'Please choose a password.',
-            'password.min'     => 'Password must be at least 8 characters.',
-            'password.confirmed'=> 'The password confirmation does not match.',
+            'name.required'       => 'Please enter your full name.',
+            'name.min'            => 'Name must be at least 2 characters.',
+            'email.required'      => 'Please enter your email address.',
+            'email.email'         => 'Please enter a valid email address.',
+            'email.unique'        => 'This email is already registered. Try signing in.',
+            'college.required_if' => 'Please provide your college or university name as a student freelancer.',
+            'password.required'   => 'Please choose a password.',
+            'password.min'        => 'Password must be at least 8 characters.',
+            'password.confirmed'  => 'The password confirmation does not match.',
+            'terms.accepted'      => 'Please agree to the Terms of Service and Privacy Policy to continue.',
         ]);
 
         $accountType = $request->input('account_type', 'buyer');
         $role        = ($accountType === 'seller') ? 'seller' : 'user';
 
         $user = User::create([
-            'name'     => trim($request->input('name')),
-            'email'    => strtolower(trim($request->input('email'))),
+            'name'     => $normalizedName,
+            'email'    => $normalizedEmail,
             'password' => Hash::make($request->input('password')),
             'role'     => $role,
-            'college'  => $request->input('college', ''),
-            'course'   => $request->input('course', 'Student Member'),
+            'college'  => trim((string) $request->input('college', '')),
+            'course'   => trim((string) $request->input('course', 'Student Member')),
             'bio'      => 'New SkillHive member.',
             'skills'   => ['Student', 'Freelancer'],
         ]);
@@ -225,16 +258,29 @@ class AuthController extends Controller
 
     public function sendResetLink(Request $request)
     {
+        $normalizedEmail = strtolower(trim((string) $request->input('email', '')));
+        $request->merge(['email' => $normalizedEmail]);
+
         $request->validate(
             ['email' => ['required', 'email']],
             ['email.required' => 'Please enter your email address.',
              'email.email'    => 'Please enter a valid email address.']
         );
 
-        // Use Laravel's built-in Password broker — sends real email (logs to storage/logs/laravel.log when MAIL_MAILER=log)
-        $status = Password::sendResetLink($request->only('email'));
+        $status = Password::sendResetLink(['email' => $normalizedEmail]);
 
         if ($status === Password::RESET_LINK_SENT) {
+            $user = User::where('email', $normalizedEmail)->first();
+            if ($user) {
+                \App\Models\Notification::create([
+                    'user_id' => $user->id,
+                    'title'   => 'Password Reset Link Dispatched',
+                    'message' => 'A secure password reset link was dispatched to your email address.',
+                    'icon'    => 'bi-key-fill',
+                    'type'    => 'security',
+                ]);
+            }
+
             return back()->withInput()->with('status', __($status));
         }
 
@@ -257,6 +303,9 @@ class AuthController extends Controller
 
     public function resetPassword(Request $request)
     {
+        $normalizedEmail = strtolower(trim((string) $request->input('email', '')));
+        $request->merge(['email' => $normalizedEmail]);
+
         $request->validate([
             'token'    => ['required'],
             'email'    => ['required', 'email'],
@@ -267,7 +316,12 @@ class AuthController extends Controller
         ]);
 
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+            [
+                'email'                 => $normalizedEmail,
+                'password'              => $request->input('password'),
+                'password_confirmation' => $request->input('password_confirmation'),
+                'token'                 => $request->input('token'),
+            ],
             function (User $user, string $password) {
                 $user->forceFill(['password' => Hash::make($password)])
                      ->setRememberToken(Str::random(60));

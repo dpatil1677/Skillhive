@@ -29,7 +29,7 @@
                         <label class="form-label-sh" for="srvCategory">Category <span class="text-danger">*</span></label>
                         <select class="form-select-sh w-100" id="srvCategory" name="category" required>
                             @foreach($categories as $cat)
-                                <option value="{{ $cat['name'] }}" {{ $service['category'] === $cat['name'] ? 'selected' : '' }}>{{ $cat['name'] }}</option>
+                                <option value="{{ $cat['name'] }}" {{ (($service->category_name ?? ($service['category_name'] ?? '')) === $cat['name'] || ($service['category_id'] ?? 0) === $cat['id']) ? 'selected' : '' }}>{{ $cat['name'] }}</option>
                             @endforeach
                         </select>
                     </div>

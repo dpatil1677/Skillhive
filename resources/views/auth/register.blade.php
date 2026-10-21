@@ -64,14 +64,18 @@
                 <h1>Create your account</h1>
                 <p class="auth-subtitle">Join SkillHive and start today</p>
 
+                @php
+                    $selectedAccountType = old('account_type', request('type', 'buyer'));
+                @endphp
+
                 {{-- Account Type Selector --}}
                 <div class="account-type-selector" id="accountTypeSelector">
-                    <div class="account-type-option selected" data-type="buyer" onclick="selectType('buyer')">
+                    <div class="account-type-option {{ $selectedAccountType === 'buyer' ? 'selected' : '' }}" data-type="buyer" onclick="selectType('buyer')">
                         <i class="bi bi-person-circle"></i>
                         <span>I want to hire</span>
                         <small style="font-size:10px;opacity:.7;">Client / Buyer</small>
                     </div>
-                    <div class="account-type-option" data-type="seller" onclick="selectType('seller')">
+                    <div class="account-type-option {{ $selectedAccountType === 'seller' ? 'selected' : '' }}" data-type="seller" onclick="selectType('seller')">
                         <i class="bi bi-laptop"></i>
                         <span>I want to work</span>
                         <small style="font-size:10px;opacity:.7;">Freelancer</small>
@@ -80,9 +84,10 @@
 
                 {{-- Social --}}
                 <div class="d-grid mb-2">
-                    <button type="button" class="btn-social" onclick="showToast('Google sign-up coming soon!','info')">
+                    <button type="button" class="btn-social" onclick="showToast('Google sign-up is coming soon! Please register with your email below.','info')">
                         <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                        Continue with Google
+                        <span>Continue with Google</span>
+                        <span class="badge-sh badge-sh-secondary ms-2" style="font-size:10px;padding:2px 6px;">Coming Soon</span>
                     </button>
                 </div>
 
@@ -91,11 +96,11 @@
                 {{-- Register Form --}}
                 <form action="{{ route('register.process') }}" method="POST" id="registerForm" novalidate>
                     @csrf
-                    <input type="hidden" name="account_type" id="accountType" value="buyer">
+                    <input type="hidden" name="account_type" id="accountType" value="{{ $selectedAccountType }}">
 
                     {{-- Name --}}
                     <div class="mb-4">
-                        <label class="form-label-sh" for="regName">Full Name</label>
+                        <label class="form-label-sh" for="regName">Full Name <span class="text-danger">*</span></label>
                         <input type="text"
                                id="regName" name="name"
                                class="form-control-sh w-100 {{ $errors->has('name') ? 'is-invalid' : '' }}"
@@ -109,12 +114,15 @@
 
                     {{-- Email --}}
                     <div class="mb-4">
-                        <label class="form-label-sh" for="regEmail">College Email</label>
+                        <label class="form-label-sh" for="regEmail">
+                            Email Address <span class="text-danger">*</span>
+                            <span class="text-muted fw-normal" style="font-size:var(--fs-xs);">(College or personal email)</span>
+                        </label>
                         <input type="email"
                                id="regEmail" name="email"
                                class="form-control-sh w-100 {{ $errors->has('email') ? 'is-invalid' : '' }}"
                                value="{{ old('email') }}"
-                               placeholder="you@college.edu"
+                               placeholder="e.g. you@gmail.com or you@college.edu"
                                required autocomplete="email">
                         @error('email')
                             <div class="field-error"><i class="bi bi-exclamation-circle me-1"></i>{{ $message }}</div>
@@ -122,23 +130,28 @@
                         <div id="emailFeedback"></div>
                     </div>
 
-                    {{-- College (always shown, required for sellers) --}}
+                    {{-- College (required for sellers, optional for buyers) --}}
                     <div class="mb-4">
                         <label class="form-label-sh" for="regCollege">
                             College / University
-                            <span id="collegeOptional" style="color:var(--color-muted);font-weight:400;"> (optional)</span>
+                            <span id="collegeOptional" style="color:var(--color-muted);font-weight:400;">
+                                {{ $selectedAccountType === 'seller' ? '*' : ' (optional)' }}
+                            </span>
                         </label>
                         <input type="text"
                                id="regCollege" name="college"
-                               class="form-control-sh w-100"
+                               class="form-control-sh w-100 {{ $errors->has('college') ? 'is-invalid' : '' }}"
                                value="{{ old('college') }}"
                                placeholder="e.g. MIT Pune, IIT Bombay"
                                autocomplete="organization">
+                        @error('college')
+                            <div class="field-error"><i class="bi bi-exclamation-circle me-1"></i>{{ $message }}</div>
+                        @enderror
                     </div>
 
                     {{-- Course --}}
                     <div class="mb-4" id="courseField">
-                        <label class="form-label-sh" for="regCourse">Course / Specialisation</label>
+                        <label class="form-label-sh" for="regCourse">Course / Specialisation <span class="text-muted fw-normal" style="font-size:var(--fs-xs);">(optional)</span></label>
                         <input type="text"
                                id="regCourse" name="course"
                                class="form-control-sh w-100"
@@ -149,15 +162,18 @@
 
                     {{-- Password --}}
                     <div class="mb-4">
-                        <label class="form-label-sh" for="regPassword">Password</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label-sh mb-0" for="regPassword">Password <span class="text-danger">*</span></label>
+                            <span class="text-muted" style="font-size:var(--fs-xs);">Min. 8 characters</span>
+                        </div>
                         <div style="position:relative;">
                             <input type="password"
                                    id="regPassword" name="password"
                                    class="form-control-sh w-100 {{ $errors->has('password') ? 'is-invalid' : '' }}"
-                                   placeholder="Min. 8 characters"
+                                   placeholder="Create a strong password"
                                    required autocomplete="new-password"
                                    style="padding-right:2.75rem;">
-                            <button type="button" class="pw-toggle" onclick="togglePw('regPassword',this)"><i class="bi bi-eye"></i></button>
+                            <button type="button" class="pw-toggle" onclick="togglePw('regPassword',this)" title="Show/hide password"><i class="bi bi-eye"></i></button>
                         </div>
                         {{-- Strength bar --}}
                         <div style="background:var(--color-border);border-radius:2px;margin-top:6px;">
@@ -171,7 +187,7 @@
 
                     {{-- Confirm Password --}}
                     <div class="mb-4">
-                        <label class="form-label-sh" for="regConfirm">Confirm Password</label>
+                        <label class="form-label-sh" for="regConfirm">Confirm Password <span class="text-danger">*</span></label>
                         <div style="position:relative;">
                             <input type="password"
                                    id="regConfirm" name="password_confirmation"
@@ -179,17 +195,22 @@
                                    placeholder="Repeat your password"
                                    required autocomplete="new-password"
                                    style="padding-right:2.75rem;">
-                            <button type="button" class="pw-toggle" onclick="togglePw('regConfirm',this)"><i class="bi bi-eye"></i></button>
+                            <button type="button" class="pw-toggle" onclick="togglePw('regConfirm',this)" title="Show/hide password"><i class="bi bi-eye"></i></button>
                         </div>
                         <div id="confirmFeedback"></div>
                     </div>
 
                     {{-- Terms --}}
-                    <div class="d-flex align-items-start gap-2 mb-5">
-                        <input type="checkbox" class="form-check-input mt-1" id="agreeTerms" required style="width:16px;height:16px;flex-shrink:0;">
-                        <label for="agreeTerms" style="font-size:var(--fs-sm);cursor:pointer;color:var(--color-text-secondary);">
-                            I agree to SkillHive's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
-                        </label>
+                    <div class="mb-5">
+                        <div class="d-flex align-items-start gap-2">
+                            <input type="checkbox" class="form-check-input mt-1 {{ $errors->has('terms') ? 'is-invalid' : '' }}" id="agreeTerms" name="terms" value="1" {{ old('terms') ? 'checked' : '' }} required style="width:16px;height:16px;flex-shrink:0;">
+                            <label for="agreeTerms" style="font-size:var(--fs-sm);cursor:pointer;color:var(--color-text-secondary);">
+                                I agree to SkillHive's <a href="{{ route('home') }}#terms">Terms of Service</a> and <a href="{{ route('home') }}#privacy">Privacy Policy</a> <span class="text-danger">*</span>
+                            </label>
+                        </div>
+                        @error('terms')
+                            <div class="field-error"><i class="bi bi-exclamation-circle me-1"></i>{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="d-grid">
@@ -222,11 +243,16 @@ function selectType(type) {
     if (type === 'seller') {
         coll.required = true;
         opt.textContent = ' *';
+        opt.style.color = '#dc2626';
     } else {
         coll.required = false;
         opt.textContent = ' (optional)';
+        opt.style.color = 'var(--color-muted)';
     }
 }
+
+// Initialise based on current selection
+selectType("{{ $selectedAccountType }}");
 
 /* ── Toggle password visibility ── */
 function togglePw(fieldId, btn) {
@@ -248,12 +274,12 @@ document.getElementById('regPassword')?.addEventListener('input', function () {
     const bar   = document.getElementById('pwStrengthBar');
     const label = document.getElementById('pwStrengthLabel');
     const map   = [
-        { w: '25%', c: '#dc2626', l: 'Weak' },
+        { w: '25%', c: '#dc2626', l: 'Weak (add numbers/symbols)' },
         { w: '50%', c: '#f59e0b', l: 'Fair' },
         { w: '75%', c: '#3b82f6', l: 'Good' },
         { w: '100%',c: '#16a34a', l: 'Strong ✓' },
     ];
-    const s = v.length ? map[Math.min(score - 1, 3)] : { w: '0%', c: '#dc2626', l: '' };
+    const s = v.length ? map[Math.min(Math.max(score - 1, 0), 3)] : { w: '0%', c: '#dc2626', l: '' };
     bar.style.width      = s.w;
     bar.style.background = s.c;
     label.textContent    = s.l;
@@ -282,7 +308,7 @@ let emailTimer;
 document.getElementById('regEmail')?.addEventListener('input', function () {
     clearTimeout(emailTimer);
     const fb = document.getElementById('emailFeedback');
-    const val = this.value.trim();
+    const val = this.value.trim().toLowerCase();
     if (!val.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { fb.innerHTML = ''; return; }
 
     emailTimer = setTimeout(async () => {
@@ -293,7 +319,7 @@ document.getElementById('regEmail')?.addEventListener('input', function () {
                 ? '<div class="field-error"><i class="bi bi-exclamation-circle me-1"></i>This email is already registered. <a href="{{ route("login") }}">Sign in</a></div>'
                 : '<div class="field-ok"><i class="bi bi-check-circle me-1"></i>Email is available</div>';
         } catch (_) { fb.innerHTML = ''; }
-    }, 500);
+    }, 400);
 });
 
 /* ── Form submit validation ── */
@@ -303,19 +329,51 @@ document.getElementById('registerForm')?.addEventListener('submit', function (e)
     const pw    = document.getElementById('regPassword');
     const cf    = document.getElementById('regConfirm');
     const terms = document.getElementById('agreeTerms');
+    const coll  = document.getElementById('regCollege');
+    const type  = document.getElementById('accountType').value;
     let ok = true;
 
-    if (name.value.trim().length < 2)    { showErr(name, 'Please enter your full name.'); ok = false; }
-    if (!email.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { showErr(email, 'Enter a valid email.'); ok = false; }
-    if (pw.value.length < 8)             { showErr(pw, 'Password must be at least 8 characters.'); ok = false; }
-    if (pw.value !== cf.value)           { showErr(cf, 'Passwords do not match.'); ok = false; }
+    // Normalize values
+    name.value  = name.value.trim();
+    email.value = email.value.trim().toLowerCase();
+
+    if (name.value.length < 2) {
+        showErr(name, 'Please enter your full name (minimum 2 characters).');
+        ok = false;
+    }
+    if (!email.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        showErr(email, 'Please enter a valid email address.');
+        ok = false;
+    }
+    if (type === 'seller' && coll.value.trim().length === 0) {
+        showErr(coll, 'Please provide your college or university name as a freelancer.');
+        ok = false;
+    }
+    if (pw.value.length < 8) {
+        showErr(pw, 'Password must be at least 8 characters.');
+        ok = false;
+    }
+    if (pw.value !== cf.value) {
+        showErr(cf, 'Passwords do not match.');
+        ok = false;
+    }
     if (!terms.checked) {
-        showToast('Please agree to the Terms of Service to continue.', 'warning');
+        showToast('Please agree to the Terms of Service and Privacy Policy to continue.', 'warning');
         ok = false;
     }
 
-    if (!ok) { e.preventDefault(); return; }
-    document.getElementById('registerBtn').textContent = 'Creating account…';
+    if (!ok) {
+        e.preventDefault();
+        const btn = document.getElementById('registerBtn');
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
+        return;
+    }
+
+    const btn = document.getElementById('registerBtn');
+    btn.textContent = 'Creating account…';
+    btn.disabled = true;
+    this.submit();
 });
 
 function showErr(el, msg) {

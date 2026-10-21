@@ -150,9 +150,11 @@
 
                 <h4 class="service-section-title">Skills & Expertise</h4>
                 <div class="skills-list mb-4">
-                    @foreach($freelancer['skills'] as $skill)
+                    @forelse(($freelancer['skills'] ?? []) as $skill)
                         <span class="skill-chip"><i class="bi bi-check2 me-1 text-primary"></i>{{ $skill }}</span>
-                    @endforeach
+                    @empty
+                        <span class="text-muted" style="font-size: var(--fs-sm);">No specific skills listed.</span>
+                    @endforelse
                 </div>
             </div>
         </div>

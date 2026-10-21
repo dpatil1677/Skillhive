@@ -391,4 +391,52 @@ class ChatController extends Controller
             'role'     => $m->sender?->role ?? 'user',
         ];
     }
+
+    /**
+     * Start a live video/voice meeting room.
+     */
+    public function startMeeting(Request $request)
+    {
+        $request->validate([
+            'receiver_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $me = Auth::user();
+        $receiverId = (int) $request->input('receiver_id');
+
+        if ($receiverId === $me->id) {
+            return response()->json(['status' => 'error', 'message' => 'Cannot start meeting with yourself.'], 422);
+        }
+
+        $partner = User::findOrFail($receiverId);
+
+        $roomHash = substr(md5(min($me->id, $receiverId) . '-' . max($me->id, $receiverId) . '-' . date('Ymd')), 0, 12);
+        $roomName = "SkillHive-Meet-{$roomHash}";
+        $roomUrl = "https://meet.jit.si/{$roomName}";
+
+        // Send chat message
+        $msg = Message::create([
+            'sender_id' => $me->id,
+            'receiver_id' => $receiverId,
+            'message' => "📹 I started an instant Video & Screen Share meeting! Join here: {$roomUrl}",
+            'is_read' => false,
+        ]);
+
+        // Send in-app notification
+        \App\Models\Notification::create([
+            'user_id' => $receiverId,
+            'title' => "📹 {$me->name} invited you to a Video Call",
+            'message' => "Click to join the live video meeting room.",
+            'url' => route('chat.index', ['with' => $me->id]),
+            'icon' => 'bi-camera-video-fill',
+            'type' => 'chat',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'room_name' => $roomName,
+            'room_url' => $roomUrl,
+            'message' => $this->formatMessage($msg, $me->id),
+        ]);
+    }
 }

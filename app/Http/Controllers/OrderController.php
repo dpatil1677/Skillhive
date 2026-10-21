@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -123,6 +124,8 @@ class OrderController extends Controller
             }
         }
 
+        NotificationService::orderStatusUpdated($order, $mappedStatus);
+
         return back()->with('toast_success', 'Order status updated to "' . $order->status . '".');
     }
 
@@ -164,6 +167,78 @@ class OrderController extends Controller
             'is_read'     => false,
         ]);
 
+        NotificationService::orderStatusUpdated($order, 'submitted');
+
         return back()->with('toast_success', 'Deliverables submitted successfully! The client has been notified to review and approve.');
+    }
+
+    /**
+     * Cancel an order (Buyer or Admin action).
+     */
+    public function cancelOrder(string $orderNumber, Request $request)
+    {
+        $order = Order::where('order_number', $orderNumber)->firstOrFail();
+        $userId = Auth::id();
+        $authUser = Auth::user();
+
+        if ($userId && $order->client_id !== $userId && $authUser->role !== 'admin') {
+            abort(403, 'Only the client who placed this order can cancel it.');
+        }
+
+        if (in_array(strtolower($order->raw_status), ['completed', 'cancelled'])) {
+            return back()->with('toast_error', 'This order cannot be cancelled as it is already ' . $order->status . '.');
+        }
+
+        $request->validate([
+            'cancellation_reason' => 'required|string|min:5|max:1000',
+        ]);
+
+        $reason = trim($request->input('cancellation_reason'));
+
+        $order->status = 'cancelled';
+        $order->cancellation_reason = $reason;
+        $order->cancelled_by = ($authUser->role === 'admin') ? 'admin' : 'client';
+        $order->save();
+
+        // Chat notification
+        \App\Models\Message::create([
+            'sender_id' => $userId,
+            'receiver_id' => $order->freelancer_id,
+            'message' => "⚠️ Order #{$order->order_number} has been cancelled by the client.\nReason: {$reason}\nEscrow payment of ₹" . number_format($order->total_amount) . " has been refunded.",
+            'is_read' => false,
+        ]);
+
+        // In-app Notification for Freelancer
+        \App\Models\Notification::create([
+            'user_id' => $order->freelancer_id,
+            'title' => 'Order Cancelled',
+            'message' => "Order #{$order->order_number} was cancelled by client: \"{$reason}\"",
+            'url' => route('seller.orders.show', $order->order_number),
+            'icon' => 'bi-x-circle-fill',
+            'type' => 'order',
+        ]);
+
+        return back()->with('toast_success', 'Order #' . $order->order_number . ' has been cancelled. Escrow payment (₹' . number_format($order->total_amount) . ') has been refunded.');
+    }
+
+    /**
+     * Display printable / PDF tax invoice.
+     */
+    public function invoice(string $orderNumber)
+    {
+        $order = Order::with(['service.category', 'freelancer', 'client'])
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $userId = Auth::id();
+        $authUser = Auth::user();
+
+        if ($userId && $order->client_id !== $userId && $order->freelancer_id !== $userId && $authUser->role !== 'admin') {
+            abort(403, 'Unauthorized to view this invoice.');
+        }
+
+        return view('orders.invoice', [
+            'order' => $order,
+        ]);
     }
 }

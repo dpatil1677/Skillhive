@@ -15,8 +15,14 @@
                         Good {{ date('H') < 12 ? 'morning' : (date('H') < 17 ? 'afternoon' : 'evening') }}, {{ $user['name'] }}!
                     </h2>
                     <div class="text-secondary" style="font-size: var(--fs-sm);">
-                        <i class="bi bi-mortarboard-fill me-1 text-primary"></i> {{ $user['college'] }} • {{ $user['course'] }}
-                        <span class="badge-sh badge-sh-primary ms-2"><i class="bi bi-person-badge"></i> Client & Seller</span>
+                        @if(!empty($user['college']))
+                            <i class="bi bi-mortarboard-fill me-1 text-primary"></i> {{ $user['college'] }} @if(!empty($user['course'])) • {{ $user['course'] }} @endif
+                        @else
+                            <i class="bi bi-person-fill me-1 text-primary"></i> SkillHive Member
+                        @endif
+                        <span class="badge-sh badge-sh-primary ms-2">
+                            <i class="bi bi-person-badge"></i> {{ $user['role'] === 'seller' ? 'Freelancer' : ($user['role'] === 'admin' ? 'Admin' : 'Client / Buyer') }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -171,9 +177,18 @@
                     <a href="{{ route('explore') }}" class="btn-sh btn-sh-primary text-start">
                         <i class="bi bi-search me-2"></i> Explore Services
                     </a>
-                    <a href="{{ route('seller.services.create') }}" class="btn-sh btn-sh-secondary text-start">
-                        <i class="bi bi-plus-circle me-2"></i> Create New Service
-                    </a>
+                    @if($user['role'] === 'seller' || $user['role'] === 'admin')
+                        <a href="{{ route('seller.services.create') }}" class="btn-sh btn-sh-secondary text-start">
+                            <i class="bi bi-plus-circle me-2"></i> Create New Service
+                        </a>
+                        <a href="{{ route('seller.dashboard') }}" class="btn-sh btn-sh-outline text-start">
+                            <i class="bi bi-speedometer2 me-2"></i> Freelancer Dashboard
+                        </a>
+                    @else
+                        <a href="{{ route('chat.index') }}" class="btn-sh btn-sh-secondary text-start">
+                            <i class="bi bi-chat-dots me-2"></i> Messages &amp; Inbox
+                        </a>
+                    @endif
                     <a href="{{ route('orders.index') }}" class="btn-sh btn-sh-secondary text-start">
                         <i class="bi bi-bag me-2"></i> View All Orders
                     </a>
@@ -187,14 +202,16 @@
                 <h5 class="service-section-title mb-3">Account Information</h5>
                 <div class="d-flex flex-column gap-2" style="font-size: var(--fs-sm);">
                     <div><span class="text-secondary">Email:</span> <strong class="text-dark d-block">{{ $user['email'] }}</strong></div>
-                    <div><span class="text-secondary">College:</span> <strong class="text-dark d-block">{{ $user['college'] }}</strong></div>
-                    <div><span class="text-secondary">Course:</span> <strong class="text-dark d-block">{{ $user['course'] }}</strong></div>
+                    <div><span class="text-secondary">College:</span> <strong class="text-dark d-block">{{ $user['college'] ?: 'Not specified' }}</strong></div>
+                    <div><span class="text-secondary">Course:</span> <strong class="text-dark d-block">{{ $user['course'] ?: 'Not specified' }}</strong></div>
                     <div>
                         <span class="text-secondary mb-1 d-block">Skills:</span>
                         <div class="d-flex flex-wrap gap-1">
-                            @foreach($user['skills'] as $skill)
+                            @forelse(($user['skills'] ?? []) as $skill)
                                 <span class="badge-sh badge-sh-secondary" style="font-size: 11px;">{{ $skill }}</span>
-                            @endforeach
+                            @empty
+                                <span class="text-muted" style="font-size: 11px;">No skills added</span>
+                            @endforelse
                         </div>
                     </div>
                 </div>

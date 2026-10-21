@@ -422,6 +422,11 @@
                             </span>
                         </div>
                     </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn-sh btn-sh-outline btn-sh-xs" id="startVideoCallBtn" onclick="launchVideoCall()" title="Start Instant Live Video Call">
+                            <i class="bi bi-camera-video-fill text-primary me-1"></i> Video Call
+                        </button>
+                    </div>
                 </div>
 
                 {{-- Messages Log --}}
@@ -454,7 +459,14 @@
                                         </span>
                                     </div>
                                 @endif
-                                <div class="msg-bubble {{ !empty($msg['is_admin']) ? 'border border-danger' : '' }}">{{ $msg['text'] }}</div>
+                                <div class="msg-bubble {{ !empty($msg['is_admin']) ? 'border border-danger' : '' }}">
+                                    @php
+                                        $safeText = e($msg['text']);
+                                        $safeText = preg_replace('/(https:\/\/meet\.jit\.si\/[^\s]+)/', '<br><a href="$1" target="_blank" class="btn btn-sm btn-light py-1 px-2 my-1 d-inline-flex align-items-center gap-1 border shadow-sm fw-bold text-primary text-decoration-none" onclick="event.preventDefault(); openLiveMeeting(\'$1\');"><i class="bi bi-camera-video-fill"></i> Join Video Call</a>', $safeText);
+                                        $safeText = preg_replace('/(https?:\/\/(?!meet\.jit\.si)[^\s]+)/', '<a href="$1" target="_blank" class="text-decoration-underline">$1</a>', $safeText);
+                                    @endphp
+                                    {!! nl2br($safeText) !!}
+                                </div>
                                 <div class="msg-time">{{ $msg['time'] }}</div>
                             </div>
                             @if($msg['sender'] === 'me')
@@ -636,6 +648,27 @@
             </div>
         </div>
     </div>
+{{-- ═══ Video Call Modal ═══ --}}
+<div class="modal fade" id="videoCallModal" tabindex="-1" aria-labelledby="videoCallModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius-lg); overflow: hidden; background: #0f172a;">
+            <div class="modal-header border-0 bg-dark text-white py-2 px-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success rounded-circle p-1"><i class="bi bi-camera-video-fill"></i></span>
+                    <h6 class="modal-title mb-0" id="videoCallModalLabel">Live Video Room: <span id="callRoomTitle">SkillHive Live Meeting</span></h6>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="#" id="callExternalLink" target="_blank" class="btn btn-sm btn-outline-light" title="Open full screen in new tab">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> New Tab
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="closeVideoCall()"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0" style="height: 600px; background: #000;">
+                <iframe id="videoCallFrame" src="" allow="camera; microphone; fullscreen; display-capture; autoplay" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -672,11 +705,72 @@
     }
     scrollToBottom(false);
 
-    /* ── HTML Escape ── */
+    /* ── HTML Escape & URL Formatting ── */
     function escapeHtml(s) {
         if (!s) return '';
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
+
+    function formatChatText(text) {
+        if (!text) return '';
+        const escaped = escapeHtml(text);
+        let formatted = escaped.replace(/(https:\/\/meet\.jit\.si\/[^\s]+)/g, function(url) {
+            return `<br><a href="${url}" target="_blank" class="btn btn-sm btn-light py-1 px-2 my-1 d-inline-flex align-items-center gap-1 border shadow-sm fw-bold text-primary text-decoration-none" onclick="event.preventDefault(); openLiveMeeting('${url}');"><i class="bi bi-camera-video-fill"></i> Join Video Call</a>`;
+        });
+        formatted = formatted.replace(/(https?:\/\/(?!meet\.jit\.si)[^\s]+)/g, '<a href="$1" target="_blank" class="text-decoration-underline">$1</a>');
+        return formatted.replace(/\n/g, '<br>');
+    }
+
+    /* ── Video Call Modal Controls ── */
+    window.launchVideoCall = function () {
+        const receiverId = receiverIdInput?.value;
+        if (!receiverId) return;
+
+        const btn = document.getElementById('startVideoCallBtn');
+        if (btn) btn.disabled = true;
+
+        fetch('{{ route("chat.meeting.start") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ receiver_id: receiverId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) btn.disabled = false;
+            if (data.status === 'success') {
+                if (data.message) appendMessage(data.message);
+                openLiveMeeting(data.room_url);
+            } else {
+                alert(data.message || 'Could not start meeting.');
+            }
+        })
+        .catch(err => {
+            if (btn) btn.disabled = false;
+            console.error(err);
+            alert('Unable to launch video meeting.');
+        });
+    };
+
+    window.openLiveMeeting = function (url) {
+        const iframe = document.getElementById('videoCallFrame');
+        const extLink = document.getElementById('callExternalLink');
+        const modalEl = document.getElementById('videoCallModal');
+        if (iframe) iframe.src = url + '#config.prejoinPageEnabled=false';
+        if (extLink) extLink.href = url;
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+    };
+
+    window.closeVideoCall = function () {
+        const iframe = document.getElementById('videoCallFrame');
+        if (iframe) iframe.src = '';
+    };
 
     /* ── Get / Update lastMsgId safely ── */
     function getLastMsgId() {
@@ -737,7 +831,7 @@
             ${!isMine ? `<img src="${themAvatar}" class="msg-avatar-sm" title="${escapeHtml(msg.name || '')}">` : ''}
             <div class="msg-bubble-wrap">
                 ${adminBadgeHtml}
-                <div class="msg-bubble ${msg.is_admin ? 'border border-danger' : ''}">${escapeHtml(msg.text)}</div>
+                <div class="msg-bubble ${msg.is_admin ? 'border border-danger' : ''}">${formatChatText(msg.text)}</div>
                 <div class="msg-time">${escapeHtml(msg.time || '')}</div>
             </div>
             ${isMine ? `<img src="${myAvatar}" class="msg-avatar-sm" alt="Me">` : ''}
