@@ -7,6 +7,10 @@
     <meta name="description" content="@yield('meta_description', 'SkillHive — Student Freelance Marketplace. Discover talented students for development, design, content, video and more.')">
     <title>@yield('title', 'SkillHive') — Student Freelance Marketplace</title>
 
+    {{-- Favicon --}}
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.png') }}">
+
     {{-- Google Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

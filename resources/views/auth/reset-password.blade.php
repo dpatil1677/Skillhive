@@ -27,8 +27,8 @@
             <div class="auth-card">
 
                 <div class="text-center mb-4">
-                    <a href="{{ route('home') }}" style="text-decoration:none;color:var(--color-primary);font-size:var(--fs-xl);font-weight:var(--fw-bold);">
-                        <i class="bi bi-hexagon-fill" style="font-size:1.4rem;margin-right:2px;"></i> SkillHive
+                    <a href="{{ route('home') }}" class="d-inline-flex align-items-center gap-2" style="text-decoration:none;color:var(--color-primary);font-size:var(--fs-xl);font-weight:var(--fw-bold);">
+                        <img src="{{ asset('images/logo.png') }}" alt="SkillHive Logo" style="width:32px;height:32px;object-fit:contain;"> SkillHive
                     </a>
                 </div>
 

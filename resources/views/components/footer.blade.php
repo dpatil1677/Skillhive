@@ -2,8 +2,8 @@
     <div class="container">
         <div class="row g-5">
             <div class="col-lg-3 col-md-6">
-                <div class="footer-sh__brand">
-                    <i class="bi bi-hexagon-fill" style="font-size: 1.2rem; margin-right: 2px;"></i>
+                <div class="footer-sh__brand d-flex align-items-center gap-2">
+                    <img src="{{ asset('images/logo.png') }}" alt="SkillHive Logo" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;">
                     SkillHive
                 </div>
                 <p class="footer-sh__tagline">Your skills deserve an audience. Connect with talented student freelancers.</p>

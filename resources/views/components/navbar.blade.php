@@ -18,8 +18,8 @@
 
 <nav class="navbar navbar-expand-lg navbar-sh">
     <div class="container">
-        <a class="navbar-brand" href="{{ $brandHref }}">
-            <i class="bi bi-hexagon-fill" style="font-size: 1.4rem; margin-right: 2px;"></i>
+        <a class="navbar-brand d-flex align-items-center gap-2" href="{{ $brandHref }}">
+            <img src="{{ asset('images/logo.png') }}" alt="SkillHive Logo" style="width:30px;height:30px;object-fit:contain;">
             SkillHive
         </a>
 

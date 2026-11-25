@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Admin Panel') — SkillHive</title>
+
+    {{-- Favicon --}}
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.png') }}">
     
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,7 +102,7 @@
     <aside class="admin-sidebar shadow-sm">
         <div>
             <a href="{{ route('admin.dashboard') }}" class="admin-sidebar-brand d-flex align-items-center gap-2">
-                <i class="bi bi-hexagon-fill text-primary"></i>
+                <img src="{{ asset('images/logo.png') }}" alt="SkillHive Logo" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;">
                 <span>SkillHive Admin</span>
             </a>
 

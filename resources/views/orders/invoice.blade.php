@@ -203,8 +203,8 @@
         {{-- Invoice Top --}}
         <div class="invoice-top">
             <div>
-                <div class="brand-logo">
-                    <i class="bi bi-hexagon-fill"></i> SkillHive
+                <div class="brand-logo d-flex align-items-center gap-2">
+                    <img src="{{ asset('images/logo.png') }}" alt="SkillHive Logo" style="width:28px;height:28px;object-fit:contain;"> SkillHive
                 </div>
                 <p style="font-size: 13px; color: var(--color-text-secondary); margin-top: 6px;">
                     Student Freelance Marketplace &amp; Escrow
